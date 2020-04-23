@@ -37,3 +37,5 @@ TServer* init_server();
 // deschide socketii 
 // TODO: altele
 void set_up_server(TServer* server, char* port);
+
+void shutdown_server(TServer* server);

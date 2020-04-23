@@ -1,5 +1,9 @@
 #include "helpers.h"
 
+void start_subscriber() {
+
+}
+
 int main(int argc, char *argv[])
 {
 /*	int sockfd, i, n, ret;

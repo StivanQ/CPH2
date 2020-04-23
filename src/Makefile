@@ -1,12 +1,12 @@
-PORT = 4920
+PORT = 3229
 
 all: server subscriber
 
 run_server: server
 	./server ${PORT}
 
-run_subscriber: subscriber
-	./subscriber 
+# run_subscriber: subscriber
+# 	./subscriber 
 
 server: server.c
 	gcc -Wall server.c -o server
