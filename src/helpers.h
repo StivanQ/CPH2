@@ -7,11 +7,16 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <errno.h>
+
+#include "list.h"
+#include "queue.h"
+
 
 #define DIE(condition, message) \
 	do { \
@@ -22,23 +27,71 @@
 		} \
 	} while (0)
 
-#define MAX_LEN 2000
+#define ID_MAX_LEN 10
+#define TOPIC_MAX_LEN 50
 
-typedef struct packet {
-	// 0 - communication; 1 - subscribe; 2 - unsubscribe
+#define BUFFER_LEN 1600
+#define MAX_LEN 1500
+
+#define LIGHT 15
+#define HEAVY 35 
+
+#define LOG_IN 0
+#define SUB 1
+#define UNSUB 2
+
+#define ONLINE 0
+#define OFFLINE 1
+
+typedef struct topic {
+	char name[TOPIC_MAX_LEN];
+	uint8_t SF;
+	list subs;
+} TTopic;
+
+/*typedef struct packet {
+	uint8_t packet_type;
+	int len;
+	// 0 - first ping by the subscriber; 1 - subscribe; 2 - unsubscribe
 	// if op_code is set to either 1 or 2 then the topic the client just
 	// un/subscribed from/to is set accordingly
 	uint8_t op_code;
-	// 0 - if the client doesn't want SF enable
-	// 1 - otherwise
-	uint8_t SF;
-	// the topic of the message
-	char topic[50];
+
 	// the data type of the message
 	uint8_t data_type;
+
+	// if op_code is set to 0 then the first 10 characters in the payload
+	// are the ID of the subscriber
 	// the actual message
 	char paylaod[MAX_LEN];
 
-} pkt;
+	// TODO: mai tinkeresc pe aici pe la structurile astea 
+	// modific sa fie un singur payload cu niste compinatii de op_code uri
+	// sa fie si topic in payload ca parca nu-i palce cum arata. w/e mai vad eu
+} TPkt;
+*/
+// used for comunicating between 
+typedef struct package{
+	// packet_type = LIGHT/ HEAVY
+	uint8_t packet_type;
+	// int len;
+	// 0 - sign-up
+	// 1 - subscribe
+	// 2 - unsubscribe
+	uint8_t op_code;
+	uint8_t SF;
+	char ID[ID_MAX_LEN];
+	char topic[TOPIC_MAX_LEN];
+	char payload[MAX_LEN];
+} TPkg;
+
+typedef struct subscriber {
+	// 1 - online; 0 - offline;
+	uint8_t status;
+	// client's fd; if status is 0 then fd should be negative and vice-versa
+	int fd;
+	char ID[ID_MAX_LEN];
+	list topicList;
+} TSubscriber;
 
 #endif /* HELPERS_H */
