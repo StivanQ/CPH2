@@ -55,6 +55,7 @@ void loop(TServer* server) {
 					if(n > 0) {
 						// TODO: bug-free this
 						if(strstr(buffer, "exit")) {
+							shutdown_clients(server);
 							shutdown_server(server);
 							//exit(0);
 							return;
@@ -178,6 +179,7 @@ void parse_client_package(TServer* server, int sockfd) {
 						return;
 					}
 					n = send(sockfd, p, sizeof(TPkg), 0);
+					FD_CLR(sockfd, &(server->read_fds));
 
 					if(n < 0) {
 						perror("eroare fratelemeleu[]");
@@ -476,10 +478,12 @@ void shutdown_server(TServer* server) {
 	int i;
 	for(i = 0; i <= server->fdmax; i++) {
 		if(FD_ISSET(i, &(server->read_fds))){
+			shutdown(i, SHUT_RDWR);
 			close(i);
 		}
 	}
-
+	shutdown(server->tcp_sockfd, SHUT_RDWR);
+	shutdown(server->udp_sockfd, SHUT_RDWR);
 	close(server->tcp_sockfd);
 	close(server->udp_sockfd);
 }
@@ -499,7 +503,8 @@ TSubscriber* newSubscriber(char* ID) {
 }
 
 TTopic* newTopic(char* name) {
-		TTopic* newTopic = (TTopic*) calloc(1, sizeof(TTopic));
+
+	TTopic* newTopic = (TTopic*) calloc(1, sizeof(TTopic));
 
 	if(newTopic == NULL) {
 		return NULL;
@@ -566,4 +571,20 @@ TPkg* shutdown_order(){
 	}
 	p->package_type = LIGHT;
 	return p;
+}
+
+void shutdown_clients(TServer* server) {
+	TPkg* order = shutdown_order();
+	TSubscriber* sub;
+	list p = server->subscribers;
+	int sockfd;
+	while(p) {
+		sub = (TSubscriber*)(p->element);
+		if(sub->status == ONLINE) {
+			sockfd = sub->fd;
+			send(sockfd, order, sizeof(TPkg), 0);
+			FD_CLR(sockfd, &(server->read_fds));
+		}
+		p = p->next;
+	}
 }

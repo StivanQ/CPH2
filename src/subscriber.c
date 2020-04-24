@@ -5,11 +5,8 @@ int main(int argc, char *argv[]) {
 	if(argc < 3) {
 		usage(argv[0]);
 	}
-
 	TClient* client = init_client(argv[1], argv[2], argv[3]);
-
 	loop(client);
-
 	return 0;
 }
 
@@ -120,7 +117,6 @@ void loop(TClient* client) {
 	}
 }
 
-
 void shutdown_client(TClient* client) {
 
 	// de-alloc w/e was malloced
@@ -156,14 +152,14 @@ int my_parse_stdin(TClient* client) {
   			printf("n>0[%d]\n", __LINE__);
  			if(strcmp(pch, "subscribe") == 0) {
  				// subscribe command
-  				printf("subscribe[%d]\n", __LINE__);
+  				//printf("subscribe[%d]\n", __LINE__);
  				code = 1;
  			} else if(strcmp(pch, "unsubscribe") == 0) {
  				// unsubscribe command
-  				printf("usubscribe[%d]\n", __LINE__);
+  				//printf("usubscribe[%d]\n", __LINE__);
  				code = 2;
  			} else if(strcmp(pch, "exit\n") == 0) {
-  				printf("exit[%d]\n", __LINE__);
+  				//printf("exit[%d]\n", __LINE__);
  				// exit command
  				code = 3;
  				return code;
@@ -188,26 +184,31 @@ int my_parse_stdin(TClient* client) {
  		}
 
  		pch = strtok (NULL," ");
-
- 		if(pch != NULL) {
- 			printf("SF[%s]\n", pch);
- 			// asta e SF
- 			if(strlen(pch) > 2) {
- 				return 0;
- 			} else {
- 				SF = pch[0] - '0';
- 				printf("SF[%d]\n", SF);
- 				if(SF == 0 || SF == 1) {
- 					// sf valid
- 				} else {
- 					return 0;
- 				}
- 			}
+ 		if(code == 2) {
+	 		if(pch != NULL) {
+	 			//printf("SF[%s]\n", pch);
+	 			// asta e SF
+	 			if(strlen(pch) > 2) {
+	 				return 0;
+	 			} else {
+	 				SF = pch[0] - '0';
+	 				//printf("SF[%d]\n", SF);
+	 				if(SF == 0 || SF == 1) {
+	 					// sf valid
+	 				} else {
+	 					return 0;
+	 				}
+	 			}
+	 		} else {
+	 			return 0;
+	 		}
  		} else {
- 			return 0;
+ 			if(pch != NULL) {
+ 				return 0;
+ 			}
  		}
 
- 		printf("command[%d] topic[%s] SF[%d]\n", code, topic, SF);
+ 		//printf("command[%d] topic[%s] SF[%d]\n", code, topic, SF);
 
  		memset(&p, 0, sizeof(TPkg));
  		p.package_type = LIGHT;
@@ -220,6 +221,11 @@ int my_parse_stdin(TClient* client) {
  		if(n < 0) {
  			printf("[%d]\n", __LINE__);
  			perror("trimitere packet subscribe/unsubscribe");
+ 		}
+ 		if(code == 1) {
+ 			printf("subscribed %s\n", topic);
+ 		} else if(code == 2) {
+ 			printf("unsubscribed %s\n", topic);
  		}
 	} else {
 		// some kind of error i think

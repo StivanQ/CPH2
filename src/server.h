@@ -54,8 +54,10 @@ void set_up_server(TServer* server, char* port);
 void shutdown_server(TServer* server);
 
 int search_int(void*, void*);
+
 // creates a nea subscriber to be adden in the subscribers list of the server
 TSubscriber* newSubscriber(char* ID);
+
 // creates a ne topic which can be user for both topicList in server and in
 // topicList in subscriber
 TTopic* newTopic(char* name);
@@ -84,5 +86,8 @@ void print_topic(void* topic);
 
 // creates a package orderint the client to shutdown
 TPkg* shutdown_order();
+
+// sends an exit order to all online subscribers
+void shutdown_clients(TServer* server);
 
 #endif /* SERVER_H */

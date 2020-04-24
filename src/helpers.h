@@ -99,4 +99,11 @@ typedef struct subscriber {
 	// maybe log-in infos for plrintfs
 } TSubscriber;
 
+typedef struct udp_package{
+	char topic[TOPIC_MAX_LEN];
+	uint8_t data_type;
+	char payload[MAX_LEN];
+
+}TUDP;
+
 #endif /* HELPERS_H */

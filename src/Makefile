@@ -1,4 +1,4 @@
-PORT = 9129
+PORT = 12515
 IP = "127.0.0.1"
 
 all: server subscriber
