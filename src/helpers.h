@@ -43,6 +43,8 @@
 #define ONLINE 0
 #define OFFLINE 1
 
+#define LOG_IN_LEN 15
+
 typedef struct topic {
 	char name[TOPIC_MAX_LEN];
 	uint8_t SF;
@@ -73,11 +75,13 @@ typedef struct topic {
 // used for comunicating between 
 typedef struct package{
 	// packet_type = LIGHT/ HEAVY
-	uint8_t packet_type;
+	uint8_t package_type;
 	// int len;
 	// 0 - sign-up
 	// 1 - subscribe
 	// 2 - unsubscribe
+	// is the tcp client is to recieve a LIGHT package from server is must
+	// be a shutdown order
 	uint8_t op_code;
 	uint8_t SF;
 	char ID[ID_MAX_LEN];
@@ -92,6 +96,7 @@ typedef struct subscriber {
 	int fd;
 	char ID[ID_MAX_LEN];
 	list topicList;
+	// maybe log-in infos for plrintfs
 } TSubscriber;
 
 #endif /* HELPERS_H */

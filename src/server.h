@@ -72,4 +72,14 @@ int fd_Search(void* f1, void* f2);
 // parses the package recieved from the client
 void parse_client_package(TServer* server, int sockfd);
 
+// returs 0 on succesfully accepted clients
+// returns -1 on some kind of error idk
+int accept_client(TServer* server);
+
+// print function for list of subscribers
+void print_sub(void* sub);
+
+// creates a package orderint the client to shutdown
+TPkg* shutdown_order();
+
 #endif /* SERVER_H */

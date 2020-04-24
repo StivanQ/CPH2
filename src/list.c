@@ -1,5 +1,6 @@
 #include "list.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 list cons(void *element, list l)
 {
@@ -63,8 +64,10 @@ void* search_elem(list l, void* el, int (*cmp)(void*, void*)) {
 	list p = l;
 	while(p != NULL) {
 		if((*cmp)(p->element, el) == 0) {
-			return el;
+			return p->element;
 		}
+		//printf("%s", (char*)((p->element) + 5));
+		p = p->next;
 	}
 
 	return NULL;
@@ -91,4 +94,14 @@ void add_elem(list* l, void* elem) {
 	aux->next = (*l);
 	aux->element = elem;
 	*l = aux;
+}
+
+void print_list(list l, void (*print_func)(void*)) {
+	int counter = 0;
+	while(l != NULL) {
+		print_func(l->element);
+		l = l->next;
+		counter++;
+	}
+	printf("AM PRINTAT [%d] ELEMENTE\n", counter);
 }

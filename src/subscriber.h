@@ -23,4 +23,13 @@ void start_subscriber();
 
 // allocates a TClient
 TClient* init_client(char* ID, char* ip, char* port);
+
+// sends to the server the log in informations
+void send_log_in_info(TClient* client);
+
+// closes the socket then shuts down
+void shutdown_client(TClient* client);
+
+// parses the input from stdin and sends the package to the server accordingly 
+int my_parse_stdin(TClient* client);
 #endif /* SUBSCRIBER_H */
