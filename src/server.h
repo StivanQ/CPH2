@@ -79,6 +79,9 @@ int accept_client(TServer* server);
 // print function for list of subscribers
 void print_sub(void* sub);
 
+// print function for list of subscribers
+void print_topic(void* topic);
+
 // creates a package orderint the client to shutdown
 TPkg* shutdown_order();
 

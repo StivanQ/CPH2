@@ -45,8 +45,8 @@ int rm_elem(list* l, void* el, int (*cmp)(void*, void*), int flag) {
 	}
 	// daca pe ecapul listei
 	if(p == *l) {
-		free(l);
 		*l = (*l)->next;
+		free(p);
 		return 0;
 	}
 
@@ -99,6 +99,7 @@ void add_elem(list* l, void* elem) {
 void print_list(list l, void (*print_func)(void*)) {
 	int counter = 0;
 	while(l != NULL) {
+		// printf("counter[%d]\n", counter);
 		print_func(l->element);
 		l = l->next;
 		counter++;

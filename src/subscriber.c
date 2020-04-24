@@ -152,6 +152,7 @@ int my_parse_stdin(TClient* client) {
 
 
  		if(pch != NULL) {
+ 			printf("asta e[%s]\n", pch);
   			printf("n>0[%d]\n", __LINE__);
  			if(strcmp(pch, "subscribe") == 0) {
  				// subscribe command
@@ -161,7 +162,7 @@ int my_parse_stdin(TClient* client) {
  				// unsubscribe command
   				printf("usubscribe[%d]\n", __LINE__);
  				code = 2;
- 			} else if(strcmp(pch, "exit") == 0) {
+ 			} else if(strcmp(pch, "exit\n") == 0) {
   				printf("exit[%d]\n", __LINE__);
  				// exit command
  				code = 3;
@@ -175,31 +176,38 @@ int my_parse_stdin(TClient* client) {
  			return 0;
  		}
 
- 		pch = strtok (buffer," ");
+ 		pch = strtok (NULL," ");
  		// asta e topicul
 
  		if(pch != NULL) {
+ 			printf("topic[%s]\n", pch);
  			strncpy(topic, pch, TOPIC_MAX_LEN);
  			topic[TOPIC_MAX_LEN] = '\0';
  		} else {
  			return 0;
  		}
 
- 		pch = strtok (buffer," ");
+ 		pch = strtok (NULL," ");
 
  		if(pch != NULL) {
+ 			printf("SF[%s]\n", pch);
  			// asta e SF
- 			if(strlen(pch) > 1) {
+ 			if(strlen(pch) > 2) {
  				return 0;
  			} else {
  				SF = pch[0] - '0';
+ 				printf("SF[%d]\n", SF);
  				if(SF == 0 || SF == 1) {
  					// sf valid
  				} else {
  					return 0;
  				}
  			}
+ 		} else {
+ 			return 0;
  		}
+
+ 		printf("command[%d] topic[%s] SF[%d]\n", code, topic, SF);
 
  		memset(&p, 0, sizeof(TPkg));
  		p.package_type = LIGHT;

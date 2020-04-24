@@ -1,4 +1,4 @@
-PORT = 9856
+PORT = 9129
 IP = "127.0.0.1"
 
 all: server subscriber
@@ -6,8 +6,11 @@ all: server subscriber
 run_server: server
 	./server ${PORT}
 
-run_client: subscriber
+run_client1: subscriber
 	./subscriber "marius" ${IP} ${PORT}
+
+run_client2: subscriber
+	./subscriber "ionut" ${IP} ${PORT}
 
 server: server.c list.c queue.c
 	gcc -Wall server.c list.c queue.c -o server
