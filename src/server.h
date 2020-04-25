@@ -64,6 +64,9 @@ TSubscriber* newSubscriber(char* ID);
 // topicList in subscriber
 TTopic* newTopic(char* name);
 
+// cmp function for searching subs that are in a pair by ID
+int ID_Search_pair (void* s1, void* s2);
+
 // cmp function for searching subs by ID
 int ID_Search (void* s1, void* s2);
 
@@ -96,6 +99,19 @@ void shutdown_clients(TServer* server);
 void parse_udp_package(TServer* server);
 
 // sends the parsed package from the udp client to all the subscribers
-void send_packages_to_subscribers(TServer* server, TPkg *p);
+void send_packages_to_subscribers(TServer* server, TSmall *small, TTopic* topicS);
+
+// creates a apair consisting of a subscriber and a SF
+// that is to be added in a topic's list of subscribers
+TPair* newPair(TSubscriber* sub, TPkg* p);
+
+// free func for subscribers
+void free_subs(void** sub);
+
+// free func for topics whether on server->topics or sub->topicList
+void free_topic(void** topic);
+
+// free function for pair sof subscribers & SF
+void free_pair(void** pair);
 
 #endif /* SERVER_H */

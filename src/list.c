@@ -73,11 +73,11 @@ void* search_elem(list l, void* el, int (*cmp)(void*, void*)) {
 	return NULL;
 }
 
-void free_list(list* l, void (*free_func)(void*)) {
+void free_list(list* l, void (*free_func)(void**)) {
 	list aux;
 	while(*l != NULL) {
 		aux = *l;
-		(*free_func)(aux->element);
+		(*free_func)(&(aux->element));
 		*l = (*l)->next;
 		free(aux);
 	}
@@ -104,5 +104,5 @@ void print_list(list l, void (*print_func)(void*)) {
 		l = l->next;
 		counter++;
 	}
-	printf("AM PRINTAT [%d] ELEMENTE\n", counter);
+	//printf("AM PRINTAT [%d] ELEMENTE\n", counter);
 }

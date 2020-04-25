@@ -27,10 +27,12 @@ void start_subscriber(TClient* client, char* ip, char* port) {
 	ret = inet_aton(ip, &serv_addr.sin_addr);
 	DIE(ret == 0, "inet_aton client");
 
-	ret = connect(client->server_sockfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr));
+	ret = connect(client->server_sockfd, (struct sockaddr*) &serv_addr, 
+		sizeof(serv_addr));
 	DIE(ret < 0, "connect client");
 
-	// se goleste multimea de descriptori de citire (read_fds) si multimea temporara (tmp_fds)
+	// se goleste multimea de descriptori de citire (read_fds) si 
+	// multimea temporara (tmp_fds)
 	FD_ZERO(&(client->read_fds));
 	FD_ZERO(&(client->tmp_fds));
 
@@ -59,28 +61,29 @@ void send_log_in_info(TClient* client) {
 TClient* init_client(char* ID, char* ip, char* port) {
 	TClient* client = (TClient*) calloc(1, sizeof(TClient));
 	DIE(client == NULL, "client init");
-
 	strncpy(client->ID, ID, 10);
-
 	start_subscriber(client, ip, port);
-
 	return client;
 }
 
 void loop(TClient* client) {
 
 	// minitest
-	char buffer[BUFFER_LEN];
+	char buffer[120*CONSTANTA];
 	int i;
 	int err;
 	int n;
-	TSubscriber* sub;
-	TTopic* topic;
-	TPkg* p;
+
+	char buffer_rest[2 * sizeof(TSmall)];
+	memset(buffer_rest, 0, sizeof(TSmall) + 1);
+	int rest_len = 0;
+
+	fflush(stdout);
 
 	fd_set tmp_fds;
 
 	while (1) {
+		memset(buffer, 0, 120*CONSTANTA);
 		tmp_fds = client->read_fds; 
 		
 		err = select(client->fdmax + 1, &(tmp_fds), NULL, NULL, NULL);
@@ -90,7 +93,6 @@ void loop(TClient* client) {
 
 		for(i = 0; i <= client->fdmax; i++) {
 			if(FD_ISSET(i, &(tmp_fds))) {
-				//printf("macar vede ca se prmeste input?\n");
 				if(i == STDIN_FILENO) {
 					err = my_parse_stdin(client);
 					if(err) {
@@ -98,7 +100,7 @@ void loop(TClient* client) {
 						return;
 					}
 				} else {
-					n = recv(i, buffer, BUFFER_LEN, 0);
+					n = recv(i, buffer, sizeof(TSmall), 0);
 					if(n < 0) {
 						perror("err la primire packet de la server");
 						continue;
@@ -108,16 +110,29 @@ void loop(TClient* client) {
 						return;
 					}
 
-					p = (TPkg*)buffer;
-					if(p->package_type == LIGHT) {
-						shutdown_client(client);
-						return;
-					} else if (p->package_type == HEAVY) {
-						printf("%s\n", p->payload);
-					}
+					memcpy(buffer_rest + rest_len, buffer, n);
+					rest_len += n;
 
-					printf("primeste pe socketul[%d]\n", i);
-					printf("client->server_socket[%d]\n", client->server_sockfd);
+					if(rest_len >= sizeof(TSmall)) {
+						TSmall* small = (TSmall*) buffer_rest;
+						if(small->package_type == SMALL) {
+							printf("%s\n", small->payload);
+							fflush(stdout);
+							rest_len -= sizeof(TSmall);
+							memmove(buffer_rest, buffer_rest + sizeof(TSmall), 
+								rest_len);
+							continue;
+						}
+
+						TPkg* p = (TPkg*) buffer_rest;
+						if(p->package_type == LIGHT) {
+							shutdown_client(client);
+							return;
+						}
+						rest_len -= sizeof(TSmall);
+						memmove(buffer_rest, buffer_rest + sizeof(TSmall), 
+							rest_len);
+					}
 				}
 			}
 		}
@@ -125,10 +140,7 @@ void loop(TClient* client) {
 }
 
 void exit_shutdown_client(TClient* client) {
-
-	// de-alloc w/e was malloced
 	// close every client socket
-
 	TPkg p;
 	p.package_type = LIGHT;
 	p.op_code = LOG_OUT;
@@ -136,22 +148,16 @@ void exit_shutdown_client(TClient* client) {
 
 	int err = send(client->server_sockfd, &p, sizeof(TPkg), 0);
 	if (err < 0) {
-		perror("idk boss ceva nu merge bine");
+		perror("ceva nu merge bine");
 		printf("[%d]\n", __LINE__);
 	}
-
 	shutdown(client->server_sockfd, SHUT_RDWR);
 	close(client->server_sockfd);
-	printf("logging off!\n");
 }
 
 void shutdown_client(TClient* client) {
-
-	// de-alloc w/e was malloced
-	// close every client socket
 	shutdown(client->server_sockfd, SHUT_RDWR);
 	close(client->server_sockfd);
-	printf("logging off!\n");
 }
 
 // return an exit code or nothing much else
@@ -161,23 +167,16 @@ int my_parse_stdin(TClient* client) {
 	int n;
 	int SF;
 	int code = 4;
-	printf("~~~~<<<<INPUT TASTATURA>>>>~~~~\n");
 	memset(buffer, 0, BUFFER_LEN);
 	n = read(STDIN_FILENO, buffer, BUFFER_LEN - 1);
 
 	TPkg p;
 
 	if(n > 0) {
-  		printf("n>0[%d]\n", __LINE__);
   		char* pch;
   		pch = strtok (buffer," ");
 
-  		// int code = 0;
-
-
  		if(pch != NULL) {
- 			printf("asta e[%s]\n", pch);
-  			printf("n>0[%d]\n", __LINE__);
  			if(strcmp(pch, "subscribe") == 0) {
  				// subscribe command
   				//printf("subscribe[%d]\n", __LINE__);
@@ -204,7 +203,6 @@ int my_parse_stdin(TClient* client) {
  		// asta e topicul
 
  		if(pch != NULL) {
- 			printf("topic[%s]\n", pch);
  			strncpy(topic, pch, TOPIC_MAX_LEN);
  			topic[TOPIC_MAX_LEN] = '\0';
  			if(code == 2){

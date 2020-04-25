@@ -6,38 +6,16 @@ int main(int argc, char** argv) {
 		usage(argv[0]);
 	}
 
-	// test
-	/*
-	char id1[] = "mariusionut";
-	char id2[] = {'m', 'a', 'r', 'i', 'u', 's'};
-
-	int res = strncmp(id1, id2, 7);
-
-	printf("res comp = [%d]\n", res);*/
-
 	TServer* server = init_server();
-
 	set_up_server(server, argv[1]);
-
 	loop(server);
-
-	//shutdown_server(server);
-
-	// ceva
 }
 
 void loop(TServer* server) {
-
-
-	// minitest
 	char buffer[BUFFER_LEN];
 	int i;
 	int err;
 	int n;
-	TSubscriber* sub;
-	TTopic* topic;
-	TPkg* p;
-
 	while (1) {
 		server->tmp_fds = server->read_fds; 
 		
@@ -48,45 +26,22 @@ void loop(TServer* server) {
 
 		for(i = 0; i <= server->fdmax; i++) {
 			if(FD_ISSET(i, &(server->tmp_fds))) {
-				// printf("macar vede ca se prmeste input?\n");
 				if(i == STDIN_FILENO) {
-					printf("~~~~<<<<INPUT TASTATURA>>>>~~~~\n");
 					memset(buffer, 0, BUFFER_LEN);
 					n = read(STDIN_FILENO, buffer, BUFFER_LEN - 1);
 					if(n > 0) {
-						// TODO: bug-free this
 						if(strstr(buffer, "exit")) {
 							shutdown_clients(server);
 							shutdown_server(server);
-							//exit(0);
 							return;
 						}
-					} else {
-						// some kind of error i think
 					}
-					printf("~~~~<<<<END OF INPUT TASTATURA>>>>~~~~\n");
 				} else if (i == server->tcp_sockfd) {
-					// conexiune noua cient
-					printf("~~~~<<<<INPUT TCP CLIENT[%d]>>>>~~~~\n", __LINE__);
 					err = accept_client(server);
-					if(err < 0 ) {
-						// not good
-					}
-					printf("~~~~<<<<END OF INPUT TCP CLIENT[%d]>>>>~~~~\n", __LINE__);
 				} else if (i == server->udp_sockfd) {
-					// inseamna ca e packet de la crient udp
-					// TODO
-					printf("~~~~<<<<INPUT UDP CLIENT[%d]>>>>~~~~\n", __LINE__);
-
-					// aici trebuie parsat 
 					parse_udp_package(server);
-
 				} else {
-					printf("~~~~<<<<PARSARE PACKET TCP CLIENT[%d] pe port[%d]>>>>~~~~\n", 
-							__LINE__, i);
 					parse_client_package(server, i);
-					printf("~~~~<<<<END OF PARSARE PACKET TCP CLIENT[%d] pe port[%d]>>>>~~~~\n", 
-							__LINE__, i);
 				}
 			}
 		}
@@ -112,7 +67,6 @@ void parse_udp_package(TServer* server) {
 
 	char payload[MAX_LEN + 1];
 
-	struct sockaddr_in listenAddr;
 	struct sockaddr_in fromAddr;
 	socklen_t fromAddrLen = sizeof(fromAddr);
 
@@ -125,11 +79,6 @@ void parse_udp_package(TServer* server) {
 
 	char display[16] = {0};
 	inet_ntop(AF_INET, &fromAddr.sin_addr.s_addr, display, sizeof display);
-
-	// printf("lungime packet = [%d]IP_SURSA=[%s]PORT[%d]\n", n, display, 
-	// 		ntohs(fromAddr.sin_port));
-
-
 	p = (TUDP*) buffer;
 
 	strncpy(topic, p->topic, TOPIC_MAX_LEN);
@@ -172,68 +121,62 @@ void parse_udp_package(TServer* server) {
 		strncpy(payload, p->payload, MAX_LEN);
 		payload[MAX_LEN] = '\0';
 	}
-	// sprintf(message, "topic: {%s} data_type: {%s} payload{%s}", topic, data_type, payload);
-	// printf("mesaj{%s}\n", message);
-
 	sprintf(message, "%s:%d - %s - %s - %s", display, 
 			ntohs(fromAddr.sin_port), topic, data_type, payload);
-	printf("{%s}\n", message);
 
-	TPkg package;
-	memset(&package, 0, sizeof(TPkg));
-	package.package_type = HEAVY;
-	strncpy(package.topic, topic, TOPIC_MAX_LEN);
-	strncpy(package.payload, message, BUFFER_LEN);
-	package.payload[MAX_LEN] = '\0';
+	TSmall small;
+	memset(&small, 0, sizeof(TSmall));
+	small.package_type = SMALL;
+	strncpy(small.payload, message, BUFFER_LEN);
+	small.payload[BUFFER_LEN] = '\0';
 
-	send_packages_to_subscribers(server, &package);
+	TTopic topicS;
+	strncpy(topicS.name, topic, TOPIC_MAX_LEN);
 
+	send_packages_to_subscribers(server, &small, &topicS);
 }
 
-
-void send_packages_to_subscribers(TServer* server, TPkg *p) {
-
+void send_packages_to_subscribers(TServer* server, TSmall *p, TTopic* topicS) {
 	TTopic* topic;
 
-	TTopic aux;
-	strncpy(aux.name, p->topic, TOPIC_MAX_LEN);
-	topic = search_elem(server->topics, (void*)&aux, topic_Search);
+	topic = search_elem(server->topics, (void*)topicS, topic_Search);
 
+	TPair* pair;
 	TSubscriber* sub;
 	list iterator;
 
 	int n;
-
-	//printf("\t\t\ttopic_cautat[%s]\n", aux.name);
-	//printf("\t\t\ttopic_wanna_find[%s]\n", p->topic);
+	int SF;
 
 	if(!topic) {
-		printf("nush daca ar trb sa fie eroare sau nu[%d]\n", __LINE__);
 	} else {
-		iterator = topic->subs;
+		iterator = topic->pair_of_subs;
 		while(iterator) {
-			sub = iterator->element;
-			if(sub) {
+			pair = iterator->element;
+			if(pair) {
+				sub = pair->sub;
+				SF = pair->SF;
 				if(sub->status == ONLINE) {
-					n = send(sub->fd, p, sizeof(TPkg), 0);
+					n = send(sub->fd, p, sizeof(TSmall), 0);
 					if(n < 0) {
 						perror("");
-						printf("eroare of some king[%d]\n", __LINE__);
+						printf("err of some king[%d]\n", __LINE__);
 					}
-					printf("am trimis[%d]bytes\n", n);
 				} else {
-					// TODO: baga in SF
-
+					if(SF == 0) {
+						iterator = iterator->next;
+						continue;
+					}
+					TSmall* pk = (TSmall*) calloc(1, sizeof(TSmall));
+					
+					memcpy(pk, p, sizeof(TSmall));
+					queue_enq(sub->storage, pk);
 				}
-			} else {
-				// idk eroare de vreun fel
 			}
 			iterator = iterator->next;
 		}
 	}
-
 }
-
 
 void parse_client_package(TServer* server, int sockfd) {
 	// inseamna ca nu e nici stdin, nici client tcp nou, nici
@@ -254,12 +197,10 @@ void parse_client_package(TServer* server, int sockfd) {
 
 	TPkg* p;
 	TSubscriber* sub;
-	TSubscriber* sub2;
 	TSubscriber subAux;
 	TTopic* topic;
 	TTopic topicAux;
 
-	struct sockaddr_in listenAddr;
 	struct sockaddr_in fromAddr;
 	socklen_t fromAddrLen = sizeof(fromAddr);
 
@@ -269,26 +210,21 @@ void parse_client_package(TServer* server, int sockfd) {
 	char display[16] = {0};
 	inet_ntop(AF_INET, &fromAddr.sin_addr.s_addr, display, sizeof (display));
 
-	printf("lungime packet = [%d]IP_SURSA=[%s]\n", n, display);
 
 	if(n == 0) {
-		//subAux = newSubscriber("");
 		subAux.fd = sockfd; 
 		sub = (TSubscriber*) search_elem(server->subscribers,
 				(void*)(&subAux), fd_Search);
 
-		if(!sub) {
-			printf("boss trebuia sa-l gasim [%d]\n", __LINE__);
-		} else {
+		if(sub) {
 			sub->status = OFFLINE;
 		}
 
-		printf("clientul de pe socketul [%d] left the room\n", sockfd);
-		//shutdown(sockfd, SHUT_RDWR);
-		FD_CLR(sockfd, &(server->read_fds));
+		char ID[ID_MAX_LEN + 1];
+		strncpy(ID, sub->ID, ID_MAX_LEN);
 
-		//print_list((server->subscribers), print_sub);
-		printf("~~~EO PARSE PACKAGE~~~[%d]\n", __LINE__);
+		printf("Client %s discconected.\n", ID);
+		FD_CLR(sockfd, &(server->read_fds));
 		return;
 	}
 
@@ -299,23 +235,14 @@ void parse_client_package(TServer* server, int sockfd) {
 
 	p = (TPkg*) buffer;
 	char localID[ID_MAX_LEN + 1];
-	// char localID[ID_MAX_LEN + 1];
-
-
-
 	if(p->package_type == LIGHT) {
 		// daca e package light inseamna ca e de la client tcp
-		// printf("am primit packet light\n");
-
 		if(p->op_code == LOG_IN) {
 			// daca e opcode de log_in il cautam sa vedem daca il avem in lista 
 			// de subscriberi
-			// printf("cu credentiale de log-in\n");
-			// subAux = newSubscriber(p->ID);
 			strncpy(subAux.ID, p->ID, ID_MAX_LEN);
 			sub = (TSubscriber*) search_elem(server->subscribers,
 				(void*)(&subAux), ID_Search);
-			//free(subAux);
 			if(sub) {
 				// daca e in lista vedem daca e online
 				// daca e online nu e bine
@@ -323,8 +250,6 @@ void parse_client_package(TServer* server, int sockfd) {
 				// cel de unde am primit mesajul
 
 				if(sub->status == ONLINE) {
-					printf("boss avem deja userul asta logat\n");
-
 					p = shutdown_order();
 					if(!p) {
 						printf("err malloc[%d]\n", __LINE__);
@@ -333,36 +258,33 @@ void parse_client_package(TServer* server, int sockfd) {
 					n = send(sockfd, p, sizeof(TPkg), 0);
 					FD_CLR(sockfd, &(server->read_fds));
 
+
 					if(n < 0) {
-						perror("eroare fratelemeleu[]");
+						perror("eroare");
 						printf("[%d]\n", __LINE__);
 						return;
 					}
-					
-					print_list((server->subscribers), print_sub);
-					printf("~~~EO PARSE PACKAGE~~~[%d]\n", __LINE__);
 					return;
 				} else if (sub->status == OFFLINE) {
 					sub->status = ONLINE;
 					sub->fd = sockfd;
 					strncpy(localID, p->ID, ID_MAX_LEN);
 					localID[ID_MAX_LEN] = '\0';
-					// printf("Client[%s] connected\n", localID);
 
-					//
-					//
-					//
-					//
-					// TODO: goleste toata coada de packete spre
-					// baiatul asta
-					//
-					//
-					//
-					//
-					//
+					if(sub->storage) {
+						TSmall* sendme;
+						while(!queue_empty(sub->storage)) {
+							sendme = queue_deq(sub->storage);
+							n = send(sub->fd, sendme, sizeof(TSmall), 0);
+							if(n <= 0) {
+								perror("");
+								printf("[%d]\n", __LINE__);
+							}
+							free(sendme);
+						}
+					}
 				}
 			} else {
-				// daca nu il gasim dupa nume tre sa il inregistram
 				sub = newSubscriber(p->ID);
 				if(!sub) {
 					printf("well idk sub allocation[%d]\n", __LINE__);
@@ -371,50 +293,33 @@ void parse_client_package(TServer* server, int sockfd) {
 				sub->status = ONLINE;
 				sub->fd = sockfd;
 				add_elem(&(server->subscribers), sub);
-				// printf("te-am bagat in lista de subscriberi, boss\n");
-
-				// print_list((server->subscribers), print_sub);
 			}
 			inet_ntop(AF_INET, &(server->clientInfo[sockfd].sin_addr.s_addr), 
 				display, sizeof (display));
-			printf("New cient %s connected from %s:%d\n", p->ID, display, 
+			printf("New client %s connected from %s:%d\n", p->ID, display, 
 			ntohs(server->clientInfo[sockfd].sin_port));
 		} else if(p->op_code == SUB) {
 			// daca e op_code de subscribe
 			// cautam sa vedem daca e subscribed deja
 
-			// TODO: cauta sa nu fie abonat deja la topicul ala
-
-			// printf("cu comanda de subscribe\n");
 			strncpy(subAux.ID, p->ID, ID_MAX_LEN);
 			sub = (TSubscriber*) search_elem(server->subscribers,
 				(void*)(&subAux), ID_Search);
 			if(!sub) {
-				printf("eroare nu-l gasim pe bosseanul deja logaT?[%d]\n", __LINE__);
 				return;
 			}
-				printf("[%d]", __LINE__);
 
 			strncpy(topicAux.name, p->topic, TOPIC_MAX_LEN);
 			topic = (TTopic*) search_elem((sub->topicList), (void*)(&topicAux), 
 				topic_Search);
 			if(!topic) {
-				// printf("[%d]", __LINE__);
 				topic = newTopic(p->topic);
-				// printf("[%d]", __LINE__);
 				if(!topic) {
 					printf("well idk topic allocation[%d]\n", __LINE__);
 					return;
 				}
 				// adaugam topicul in lista de topicuri ale lui sub
-				// printf("[%d]", __LINE__);
-				topic->SF = p->SF;
-				// printf("[%d]", __LINE__);
 				add_elem(&(sub->topicList), topic);
-
-				// printf("[%d]", __LINE__);
-				// print_list(sub->topicList, print_topic);
-				// printf("[%d]", __LINE__);
 
 				// cautam topicul in lista de topicuri si daca il gasim
 				// doar il adaugam pe sub in lista de subscriberi la topic
@@ -430,30 +335,29 @@ void parse_client_package(TServer* server, int sockfd) {
 						return;
 					}
 					add_elem(&(server->topics), topic);
-					add_elem(&(topic->subs), sub);
-					// printf("[%d]", __LINE__);
+
+					TPair* pair = newPair(sub, p);
+
+					add_elem(&(topic->pair_of_subs), pair);
 				}
-				// printf("[%d]", __LINE__);
-				// print_list(server->topics, print_topic);
-			} else {
-				printf("\t\t\t\tavem deja topicul asta[%d]\n", __LINE__);
 			}
 
 			strncpy(topicAux.name, p->topic, TOPIC_MAX_LEN);
 			topic = search_elem(server->topics, (void*) &topicAux, topic_Search);
 			if(!topic) {
-				printf("boss ar trebui sa avem topicul asta[%d]\n", __LINE__);
 				return;
 			}
 
-			sub2 = search_elem(topic->subs, (void*)sub, ID_Search);
-			if(!sub2) {
-				add_elem(&(topic->subs), sub);
+			TPair* pair = newPair(sub, p);
+
+			TPair* pair2;
+			pair2 = search_elem(topic->pair_of_subs, (void*)pair, ID_Search_pair);
+			if(!pair2) {
+				add_elem(&(topic->pair_of_subs), pair);
 			} else {
-				//printf("avem deja topicul asta[%d]\n", __LINE__);
+				free(pair);
 			}
 		} else if(p->op_code == UNSUB) {
-			// printf("cu comanda de unsubscribe\n");
 
 			// daca vrea sa-si dea subscribe 
 			// cautam sa vedem daca e abonat la topicul ala
@@ -461,42 +365,34 @@ void parse_client_package(TServer* server, int sockfd) {
 			// daca e abonat ii stergem etry-ul de topic din lista lui de
 			// topicuri apoi stergem si subscriberul din lista topicului de 
 			// abonati
-			// TODO: ^^^^^^^
 
 			strncpy(subAux.ID, p->ID, ID_MAX_LEN);
 
 			subAux.fd = sockfd;
-			// printf("[%d]", __LINE__);
 			sub = search_elem(server->subscribers, (void*)(&subAux), ID_Search);
-			// printf("[%d]", __LINE__);
 			if(!sub) {
-				printf("nu gasesc clientul boss[%d]\n", __LINE__);
 				return;
 			}
-			// printf("[%d]", __LINE__);
-			// printf("lista de topicuri ale lui[%s]cu socket[%d]\n", sub->ID, sub->fd);
-			// print_list(sub->topicList, print_topic);
-			// printf("[%d]", __LINE__);
 			strncpy(topicAux.name, p->topic, TOPIC_MAX_LEN);
-			err = rm_elem(&(sub->topicList), (void*)(&topicAux), topic_Search, 0);
-			// printf("lista de topicuri ale lui[%s]cu socket[%d]\n", sub->ID, sub->fd);
+			err = rm_elem(&(sub->topicList), (void*)(&topicAux), 
+				topic_Search, 0);
 			sub->fd = sockfd;
-			// print_list(sub->topicList, print_topic);
 			if(err == -1) {
-				printf("nu gasesc topic [%s] la cientul[%d][%d]\n", topicAux.name, sockfd,
-					__LINE__);
 				return;
 			}
-			topic = search_elem(server->topics, (void*)(&topicAux), topic_Search);
+			topic = search_elem(server->topics, (void*)(&topicAux), 
+				topic_Search);
 
 			if(!topic) {
-				printf("nu gasesc topic [%s] in lista serverlui[%d][%d]\n", topicAux.name, sockfd,
-					__LINE__);
 				return;
 			}
-			err = rm_elem(&(topic->subs), (void*)(sub), ID_Search, 0);
+			TPair* pair;
+			pair = newPair(sub, p);
+
+			err = rm_elem(&(topic->pair_of_subs), (void*)(pair), 
+				ID_Search_pair, 1);
+			free(pair);
 			if(err == -1){
-				printf("nu gasesc clientul boss[%d]\n", __LINE__);
 				return;
 			}
 		} else if(p->op_code == LOG_OUT) {
@@ -504,46 +400,16 @@ void parse_client_package(TServer* server, int sockfd) {
 			sub = (TSubscriber*) search_elem(server->subscribers,
 				(void*)(&subAux), ID_Search);
 			if(!sub) {
-				printf("eroare nu-l gasim pe bosseanul deja logaT?[%d]\n", __LINE__);
 				return;
 			}
 			sub->status = OFFLINE;
-			// FD_CLR(sockfd, &(server->read_fds));
-		} else {
-
-
-
-			printf(" nush fra wrong op_code [%d]\n", __LINE__);
 		}
-	} else if (p->package_type == HEAVY) {
-		printf("n-ai trimis pacetul cumtrebuie boss\n");
 	}
-
-	// daca nu e cerere de login si nici garbage inseamna ca e
-	// ceva mesaj subscribe/unsubscribe topic
-	// vedem ce zice si il rezolvam si pe el
-	// printf("{{{lista de subscriberi}}}\n");
-	// print_list((server->subscribers), print_sub);
-	// printf("{{{lista de topicuri}}}\n");
-	// print_list((server->topics), print_topic);
-	// printf("~~~EO PARSE PACKAGE~~~[%d]\n", __LINE__);
-
-	//sub = search_elem(server->subscribers, (void*)&i, fd_Search);
-	//if(sub == NULL) {
-		// asta ar fi cazul cand nu exitsa si il bagam i guess?
-	//}
 }
 
 TServer* init_server() {
 	TServer* server = (TServer* ) calloc(1, sizeof(TServer));
 	DIE(server == NULL, "init_server");
-
-	// TODO: stuff gen 
-	// gen liste pt clienti
-	// si liste pt topicuri
-
-	printf("Buna dimineata\n");
-
 	server->subscribers = NULL;
 	server->topics = NULL;
 
@@ -551,9 +417,6 @@ TServer* init_server() {
 }
 
 void set_up_server(TServer* server, char* port) {
-
-	printf("Buna ziua!\n");
-
 	// pasring the port
 	int portno;
 	portno = atoi(port);
@@ -566,17 +429,15 @@ void set_up_server(TServer* server, char* port) {
 	// tcp socket
 	server->tcp_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	DIE(server->tcp_sockfd < 0, "tcp socket");
-	printf("TCP sockfd=[%d]\n", server->tcp_sockfd);
 
 	// udp socket
 	server->udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	DIE(server->udp_sockfd < 0, "udp socket");
-	printf("UDP sockfd=[%d]\n", server->udp_sockfd);
 
 	// disabling Nagle's algorithm
 	int state = 1;
-	setsockopt(server->tcp_sockfd, IPPROTO_TCP, TCP_NODELAY, &state, 
-			   sizeof(state));
+	setsockopt(server->tcp_sockfd, IPPROTO_TCP, TCP_NODELAY | SO_REUSEADDR, 
+				&state, sizeof(state));
 
 	int err;
 	struct sockaddr_in serv_addr;
@@ -601,8 +462,6 @@ void set_up_server(TServer* server, char* port) {
 
 	server->fdmax = server->udp_sockfd;
 
-	//printf(" cel mai mare sockfd este [%d]\n", server->fdmax);
-
 	err = listen(server->tcp_sockfd, BIG_NUMBER);
 	DIE(err < 0, "listen");
 }
@@ -615,7 +474,7 @@ int accept_client(TServer* server) {
 						   &clilen);
 	if(newsockfd < 0) {
 		// some kind of error
-		printf("<<<<YOU SHOULD NOT SEE THIS at [%d] in server>>>>\n", 
+		printf("error when accepting new clien[%d]\n", 
 				__LINE__);
 		perror("");
 		printf("errcode=[%d]\n", errno);
@@ -631,9 +490,6 @@ int accept_client(TServer* server) {
 
 	memcpy(&(server->clientInfo[newsockfd]), &cli_addr, 
 			sizeof(struct sockaddr_in));
-
-	printf("New client on socket[%d]\n", newsockfd);
-
 	return 0;
 }
 
@@ -643,15 +499,10 @@ void usage(char *file) {
 }
 
 void shutdown_server(TServer* server) {
-
-	// de-alloc w/e was malloced
 	// close every client socket
-	printf("Noapte buna!\n");
 	int i;
 	for(i = 0; i <= server->fdmax; i++) {
 		if(FD_ISSET(i, &(server->read_fds))){
-			//shutdown(i, SHUT_RDWR);
-			//close(i);
 			FD_CLR(i, &(server->read_fds));
 		}
 	}
@@ -659,6 +510,9 @@ void shutdown_server(TServer* server) {
 	shutdown(server->udp_sockfd, SHUT_RDWR);
 	close(server->tcp_sockfd);
 	close(server->udp_sockfd);
+	free_list(&(server->subscribers), free_subs);
+	free_list(&(server->topics), free_topic);
+	free(server);
 }
 
 TSubscriber* newSubscriber(char* ID) {
@@ -672,6 +526,7 @@ TSubscriber* newSubscriber(char* ID) {
 	newSub->status = 0;
 	newSub->fd = -1;
 	newSub->topicList = NULL;
+	newSub->storage = queue_create();
 	return newSub;
 }
 
@@ -685,12 +540,22 @@ TTopic* newTopic(char* name) {
 
 	strncpy(newTopic->name, name, TOPIC_MAX_LEN);
 	newTopic->SF = 0;
-	newTopic->subs = NULL;
+	newTopic->pair_of_subs = NULL;
 	return newTopic;
 }
 
+int ID_Search_pair (void* s1, void* s2) {
+	TPair* p1 = (TPair*)s1;
+	TPair* p2 = (TPair*)s2;
+	if(strncmp((p1->sub)->ID, (p2->sub)->ID, ID_MAX_LEN) == 0) {
+		return 0;
+	}
+	return 1;
+}
+
 int ID_Search (void* s1, void* s2) {
-	if(strncmp(((TSubscriber*)s1)->ID, ((TSubscriber*)s2)->ID, ID_MAX_LEN) == 0) {
+	if(strncmp(((TSubscriber*)s1)->ID, ((TSubscriber*)s2)->ID, 
+		ID_MAX_LEN) == 0) {
 		return 0;
 	}
 	return 1;
@@ -726,9 +591,6 @@ void print_sub(void* sub) {
 }
 
 void print_topic(void* topic) {
-	if(!topic){
-
-	}
 	TTopic* t = (TTopic*) topic;
 	char name[TOPIC_MAX_LEN + 1];
 	strncpy(name, t->name, TOPIC_MAX_LEN);
@@ -759,5 +621,62 @@ void shutdown_clients(TServer* server) {
 			FD_CLR(sockfd, &(server->read_fds));
 		}
 		p = p->next;
+	}
+	free(order);
+}
+
+TPair* newPair(TSubscriber* sub, TPkg* p) {
+	TPair* pair = (TPair*) calloc(1, sizeof(TPair));
+
+	if(!pair) {
+		return NULL;
+	}
+
+	pair->sub = sub;
+	pair->SF = p->SF;
+
+	return pair;
+}
+
+void free_topic(void** topic) {
+	TTopic* aux = (TTopic*) *topic;
+
+	list l = aux->pair_of_subs;
+
+	free_list(&l, free_pair);
+	if(*topic) {
+		free(*topic);
+	}
+}
+
+void free_subs(void** sub) {
+	TSubscriber* aux = (TSubscriber*) *sub;
+
+	TSmall* small;
+
+	while(!queue_empty(aux->storage)){
+		small = queue_deq(aux->storage);
+		free(small);
+	}
+	if(aux->storage) {
+		free(aux->storage);
+	}
+	if(*sub) {
+		free(*sub);
+	}
+	list l = aux->topicList;
+
+	free_list(&l, free_topic);
+}
+
+void free_pair(void** pair) {
+	TPair* p = (TPair*) pair;
+
+	if(p->sub) {
+		free(p->sub);
+	}
+
+	if(*pair) {
+		free(*pair);
 	}
 }
