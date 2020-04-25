@@ -27,8 +27,11 @@ TClient* init_client(char* ID, char* ip, char* port);
 // sends to the server the log in informations
 void send_log_in_info(TClient* client);
 
-// closes the socket then shuts down
+// closes the socket then shuts down and tells the server we logged-out
 void shutdown_client(TClient* client);
+
+// closes the socket then shuts down
+void exit_shutdown_client(TClient* client);
 
 // parses the input from stdin and sends the package to the server accordingly 
 int my_parse_stdin(TClient* client);

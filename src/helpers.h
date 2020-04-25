@@ -2,6 +2,7 @@
 #define HELPERS_H
 
 #include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -39,6 +40,7 @@
 #define LOG_IN 0
 #define SUB 1
 #define UNSUB 2
+#define LOG_OUT 3
 
 #define ONLINE 0
 #define OFFLINE 1
@@ -77,16 +79,17 @@ typedef struct package{
 	// packet_type = LIGHT/ HEAVY
 	uint8_t package_type;
 	// int len;
-	// 0 - sign-up
+	// 0 - sign-up/ log-in
 	// 1 - subscribe
 	// 2 - unsubscribe
+	// 3 - log-out
 	// is the tcp client is to recieve a LIGHT package from server is must
 	// be a shutdown order
 	uint8_t op_code;
 	uint8_t SF;
 	char ID[ID_MAX_LEN];
 	char topic[TOPIC_MAX_LEN];
-	char payload[MAX_LEN];
+	char payload[MAX_LEN + 1];
 } TPkg;
 
 typedef struct subscriber {
@@ -103,7 +106,15 @@ typedef struct udp_package{
 	char topic[TOPIC_MAX_LEN];
 	uint8_t data_type;
 	char payload[MAX_LEN];
-
 }TUDP;
+
+// daca am 
+// TUDP* p;
+// int numar
+// if(p->data_type == INT){
+// 		numar = *((int*)(p->payload));
+// }
+
+
 
 #endif /* HELPERS_H */

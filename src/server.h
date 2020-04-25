@@ -30,6 +30,8 @@ typedef struct server {
 	// the list of all topics that have at least one subscriber
 	list topics;
 
+	struct sockaddr_in clientInfo[65536];
+
 
 	// imi mai trebuie o structura unde sa vad fiecare client la ce topic este
 	// abonat; (Bonus: sa vad per topc lista de clienti abonati pt SF)
@@ -89,5 +91,11 @@ TPkg* shutdown_order();
 
 // sends an exit order to all online subscribers
 void shutdown_clients(TServer* server);
+
+// reads and parses packages recieved from dup clients
+void parse_udp_package(TServer* server);
+
+// sends the parsed package from the udp client to all the subscribers
+void send_packages_to_subscribers(TServer* server, TPkg *p);
 
 #endif /* SERVER_H */

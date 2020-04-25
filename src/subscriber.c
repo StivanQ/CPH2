@@ -29,6 +29,7 @@ void start_subscriber(TClient* client, char* ip, char* port) {
 
 	ret = connect(client->server_sockfd, (struct sockaddr*) &serv_addr, sizeof(serv_addr));
 	DIE(ret < 0, "connect client");
+
 	// se goleste multimea de descriptori de citire (read_fds) si multimea temporara (tmp_fds)
 	FD_ZERO(&(client->read_fds));
 	FD_ZERO(&(client->tmp_fds));
@@ -93,7 +94,7 @@ void loop(TClient* client) {
 				if(i == STDIN_FILENO) {
 					err = my_parse_stdin(client);
 					if(err) {
-						shutdown_client(client);
+						exit_shutdown_client(client);
 						return;
 					}
 				} else {
@@ -102,11 +103,17 @@ void loop(TClient* client) {
 						perror("err la primire packet de la server");
 						continue;
 					}
+					if(n == 0) {
+						shutdown_client(client);
+						return;
+					}
 
 					p = (TPkg*)buffer;
 					if(p->package_type == LIGHT) {
 						shutdown_client(client);
 						return;
+					} else if (p->package_type == HEAVY) {
+						printf("%s\n", p->payload);
 					}
 
 					printf("primeste pe socketul[%d]\n", i);
@@ -117,13 +124,34 @@ void loop(TClient* client) {
 	}
 }
 
+void exit_shutdown_client(TClient* client) {
+
+	// de-alloc w/e was malloced
+	// close every client socket
+
+	TPkg p;
+	p.package_type = LIGHT;
+	p.op_code = LOG_OUT;
+	strncpy(p.ID, client->ID, ID_MAX_LEN);
+
+	int err = send(client->server_sockfd, &p, sizeof(TPkg), 0);
+	if (err < 0) {
+		perror("idk boss ceva nu merge bine");
+		printf("[%d]\n", __LINE__);
+	}
+
+	shutdown(client->server_sockfd, SHUT_RDWR);
+	close(client->server_sockfd);
+	printf("logging off!\n");
+}
+
 void shutdown_client(TClient* client) {
 
 	// de-alloc w/e was malloced
 	// close every client socket
-	printf("logging off!\n");
-
+	shutdown(client->server_sockfd, SHUT_RDWR);
 	close(client->server_sockfd);
+	printf("logging off!\n");
 }
 
 // return an exit code or nothing much else
@@ -179,12 +207,15 @@ int my_parse_stdin(TClient* client) {
  			printf("topic[%s]\n", pch);
  			strncpy(topic, pch, TOPIC_MAX_LEN);
  			topic[TOPIC_MAX_LEN] = '\0';
+ 			if(code == 2){
+ 				topic[strlen(topic) - 1] = '\0';
+ 			}
  		} else {
  			return 0;
  		}
 
  		pch = strtok (NULL," ");
- 		if(code == 2) {
+ 		if(code == 1) {
 	 		if(pch != NULL) {
 	 			//printf("SF[%s]\n", pch);
 	 			// asta e SF

@@ -1,7 +1,10 @@
-PORT = 12515
+PORT = 11111
 IP = "127.0.0.1"
 
 all: server subscriber
+
+udp:
+	python3 udp_client.py --input_file three_topics_payloads.json --mode random --delay 0 ${IP} ${PORT}
 
 run_server: server
 	./server ${PORT}
@@ -13,7 +16,7 @@ run_client2: subscriber
 	./subscriber "ionut" ${IP} ${PORT}
 
 server: server.c list.c queue.c
-	gcc -Wall server.c list.c queue.c -o server
+	gcc -Wall server.c list.c queue.c -o server -lm
 
 subscriber: subscriber.c
 	gcc -Wall subscriber.c -o subscriber
